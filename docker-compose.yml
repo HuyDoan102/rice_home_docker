@@ -1,0 +1,64 @@
+version: '3'
+
+services:
+  web:
+    build: ./web
+    ports:
+      - ${RICE_APACHE_PORT}:80
+    command: sh /init.sh
+    volumes:
+      - ${RICE_SRC}:/var/www/html
+      - ./web/sites:/etc/apache2/sites-enabled
+      - ./web/supervisor/queue.conf:/etc/supervisor/conf.d/queue.conf
+      - ./web/init.sh:/init.sh
+      - ./logs/web:/var/log/apache2
+      - ./logs/supervisor:/var/log/supervisor
+
+  db_core:
+    image: mysql:5.7
+    ports:
+      - ${MYSQL_HOST_PORT}:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+
+  selenium-hub:
+    image: selenium/hub:3.141.59-copernicium
+    container_name: selenium-hub
+    volumes:
+      - /dev/shm:/dev/shm
+    ports:
+      - "4444:4444"
+
+  chrome:
+    image: selenium/node-chrome:3.141.59-copernicium
+    depends_on:
+    - selenium-hub
+    environment:
+    - HUB_HOST=selenium-hub
+    - HUB_PORT=4444
+
+  chrome-debug:
+    image: selenium/node-chrome-debug:3.141.59-copernicium
+    ports:
+      - "5900:5900"
+    depends_on:
+      - selenium-hub
+    environment:
+      - HUB_HOST=selenium-hub
+      - HUB_PORT=4444
+
+  adminer:
+    image: adminer
+    ports:
+      - 4567:8080
+    environment:
+      - ADMINER_DEFAULT_SERVER=db_core
+
+  redis:
+    image: redis
+
+volumes:
+  db_core:
